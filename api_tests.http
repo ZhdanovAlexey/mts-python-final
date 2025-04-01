@@ -1,0 +1,152 @@
+# Набор тестов для эндпоинтов которые можно запустить
+# в VSCode с помощью плагина  REST Client
+# Найти можно по идентификатору: humao.rest-client
+# Tunder Client не позволяет свободно импортировать-экспортировать записи,
+# поэтому перешел на этот плагин. Он тоже хорош :-)
+
+### ПОСЛЕДОВАТЕЛЬНОЕ ТЕСТИРОВАНИЕ API БИБЛИОТЕКИ ###
+
+# ВАЖНО: перед выполнением запросов убедитесь, что:
+# 1. Сервер FastAPI запущен (python -m uvicorn src.main:app --port 8001)
+# 2. База данных PostgreSQL запущена (docker-compose up -d)
+
+@baseUrl = http://localhost:8001/api/v1
+@timestamp = {{$timestamp}}
+@email = test_{{timestamp}}@example.com
+
+### Шаг 1: Создание нового продавца ###
+# Результат: 
+# - Успех (201 Created): Продавец создан, возвращается ID и детали
+# - Конфликт (409 Conflict): Если email уже существует, возвращается ошибка
+POST {{baseUrl}}/seller
+Content-Type: application/json
+
+{
+    "first_name": "Test",
+    "last_name": "User",
+    "email": "{{email}}",
+    "password": "test_password"
+}
+
+### Шаг 2: Проверка создания продавца ###
+# Результат: В списке появится новый продавец с нашим email
+GET {{baseUrl}}/seller
+
+# Сохраните ID и email вашего продавца в переменные
+@sellerId = 30
+@sellerEmail = test_1743548202@example.com
+
+### Шаг 3: Получение токена авторизации - ВАРИАНТ 1 ###
+# Результат: Получаем access_token для доступа к защищенным эндпоинтам
+# ВАЖНО: Используем email сохраненный в переменной выше
+POST {{baseUrl}}/token
+Content-Type: application/x-www-form-urlencoded
+
+username={{sellerEmail}}&password=test_password
+
+### Шаг 3: Получение токена авторизации - ВАРИАНТ 2 ###
+# Результат: Получаем access_token для доступа к защищенным эндпоинтам
+# ВАЖНО: Используем email сохраненный в переменной выше
+POST {{baseUrl}}/token
+Content-Type: application/x-www-form-urlencoded
+Accept: application/json
+
+grant_type=&username={{sellerEmail}}&password=test_password&scope=&client_id=&client_secret=
+
+# После получения токена скопируйте его значение в переменную ниже
+@authToken = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ0ZXN0XzE3NDM1NDc3NjRAZXhhbXBsZS5jb20iLCJleHAiOjE3NDM1NDk5MzN9.2axuwxbM9NfSQCX-ZQm67JbOWNSVhKB72cHJumkAVwI
+
+### Шаг 4: Получение информации о нашем продавце ###
+# Результат: Подробные данные о продавце
+GET {{baseUrl}}/seller/{{sellerId}}
+Authorization: Bearer {{authToken}}
+
+### Шаг 5: Обновление данных продавца ###
+# Результат: Имя и фамилия изменены
+PUT {{baseUrl}}/seller/{{sellerId}}
+Content-Type: application/json
+Authorization: Bearer {{authToken}}
+
+{
+    "first_name": "API",
+    "last_name": "Tester",
+    "email": "{{sellerEmail}}"
+}
+
+### Шаг 6: Проверка обновления данных продавца ###
+# Результат: Данные изменены (first_name: "API", last_name: "Tester")
+GET {{baseUrl}}/seller/{{sellerId}}
+Authorization: Bearer {{authToken}}
+
+### Шаг 7: Создание новой книги ###
+# Результат: Книга создана
+POST {{baseUrl}}/books
+Content-Type: application/json
+Authorization: Bearer {{authToken}}
+
+{
+    "title": "API Testing Guide",
+    "author": "Test User",
+    "year": 2024,
+    "pages": 180,
+    "seller_id": {{sellerId}}
+}
+
+# После создания книги и проверки списка, укажите ID книги в переменной
+@bookId = 4
+
+### Шаг 8: Проверка списка всех книг ###
+# Результат: В списке появится наша книга
+GET {{baseUrl}}/books
+
+### Шаг 9: Получение информации о конкретной книге ###
+# Результат: Подробная информация о созданной книге
+GET {{baseUrl}}/books/{{bookId}}
+
+### Шаг 10: Обновление данных книги ###
+# Результат: Книга обновлена
+PUT {{baseUrl}}/books/{{bookId}}
+Content-Type: application/json
+Authorization: Bearer {{authToken}}
+
+{
+    "id": {{bookId}},
+    "title": "Updated API Testing Guide",
+    "author": "Test User",
+    "year": 2024,
+    "pages": 200,
+    "seller_id": {{sellerId}}
+}
+
+### Шаг 11: Проверка обновления книги ###
+# Результат: Данные книги изменены
+GET {{baseUrl}}/books/{{bookId}}
+
+### Шаг 12: Удаление книги ###
+# Результат: Книга удалена (возвращается пустой ответ с кодом 204)
+DELETE {{baseUrl}}/books/{{bookId}}
+Authorization: Bearer {{authToken}}
+
+### Шаг 13: Проверка удаления книги ###
+# Результат: Книга отсутствует (404 Not Found)
+GET {{baseUrl}}/books/{{bookId}}
+
+### Шаг 14: Удаление продавца ###
+# Результат: Продавец удален (возвращается пустой ответ с кодом 204)
+DELETE {{baseUrl}}/seller/{{sellerId}}
+Authorization: Bearer {{authToken}}
+
+### Шаг 15: Проверка удаления продавца ###
+# Результат: Продавца нет в списке
+GET {{baseUrl}}/seller
+
+### ПРИМЕЧАНИЯ ###
+
+# 1. После шага 1 и 2, обновите переменные @sellerId и @sellerEmail, указав данные вашего продавца
+# 2. После шага 3, обновите переменную @authToken, вставив полученный токен доступа
+# 3. После шага 7 и 8, обновите переменную @bookId, указав ID созданной книги
+# 4. Все переменные вверху файла должны быть актуальными для корректной работы последующих запросов
+# 5. Год книги (year) должен быть не ранее 2020, иначе вы получите ошибку валидации
+# 6. Переменная {{$timestamp}} автоматически заменяется на текущую метку времени Unix
+# 7. Переменная {{timestamp}} (без $) использует значение из @timestamp для повторного использования
+# 8. Если ВАРИАНТ 1 аутентификации не работает, попробуйте ВАРИАНТ 2
